@@ -1,0 +1,586 @@
+{
+  "name": "Lead Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Sheet Verify & Update",
+        "formDescription": "Paste the link of the Google Sheet you want to verify and auto-update. Open the exact tab first so its gid is in the URL.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Sheet Link",
+              "placeholder": "https://docs.google.com/spreadsheets/d/.../edit#gid=0",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "buttonLabel": "Start Verification",
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Started! The sheet rows are being verified and updated in the background."
+            }
+          }
+        }
+      },
+      "id": "9499e25b-4b97-4ee0-864f-91fdc9266bd8",
+      "name": "Get Sheet Link",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -96,
+        224
+      ],
+      "webhookId": "02ad8810-dd3f-4e1c-8104-5efd48ff7d59"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Get Sheet Link').item.json['Sheet Link'] }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0",
+          "cachedResultName": "First tab"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "detectAutomatically",
+              "readRowsUntil": "firstEmptyRow"
+            }
+          }
+        }
+      },
+      "id": "d2e83e0e-782a-4589-998b-224a356c222c",
+      "name": "Read Rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        64,
+        224
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AvU3lr06lwaDdwas",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f6cd58f6-3a7f-4d5f-823a-2c1d3d77136d",
+      "name": "Loop Over Rows",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        448,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a data verification & enrichment assistant. Your job is to research this company and its people with web search, and fill in EVERY field that is missing while correcting any field that is wrong.\n\nInstructions:\n1. Use web search (company website, public LinkedIn pages, business directories, Google) to find reliable public information.\n2. Fill in every blank field you can. Correct wrong or outdated values. Keep an existing value only if you confirm it is correct; if you cannot confirm a field, keep the original value unchanged (do not invent fake data).\n3. MULTIPLE PEOPLE: the Director Name field may list 2 or 3 people. Research EACH person separately, then choose the SINGLE most valid, currently-active, best-matching person for this company (clearly linked as director/owner, with verifiable public info). Put that chosen person's full name into 'Person Source', split into 'First Name' and 'Last Name', and put their role into 'Title'. Keep the full original list in 'Director Name'.\n4. For the chosen person find their 'Business Email'. Draft a short professional outreach 'Sample Mail' (a sample email body) addressed to that person for this company.\n5. Also fill company-level fields: 'Website', 'Email', 'Number' (phone), 'Address', 'Turnover' (approx annual revenue if public), 'Team' (approx number of employees), 'Category' (industry/sector), 'Description' (1-2 line company summary) and 'Google Link' (a Google search or Google Maps link for the company).\n\nCurrent record:\nCompany Name: {{ $json['Company Name'] }}\nDirector Name (may list several people): {{ $json['Director Name'] }}\nWebsite: {{ $json.Website }}\nEmail: {{ $json.Email }}\nPhone/Number: {{ $json.Number }}\nAddress: {{ $json.Address }}\nTurnover: {{ $json.Turnover }}\nTitle: {{ $json.Title }}\nFirst Name: {{ $json['First Name'] }}\nLast Name: {{ $json['Last Name'] }}\nBusiness Email: {{ $json['Business Email'] }}\nPerson Source: {{ $json['Person Source'] }}\nSample Mail: {{ $json['Sample Mail'] }}\nTeam: {{ $json.Team }}\nGoogle Link: {{ $json['Google Link'] }}\nCategory: {{ $json.Category }}\nDescription: {{ $json.Description }}\n\nReturn corrected/enriched values for ALL fields. Set \"verified\" to true only if you confirmed the company via web search, otherwise false. In \"notes\", briefly say which person you chose and why, and note any field you could not confirm.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "id": "786d1b73-1ddb-4925-8d39-76d94f61e38f",
+      "name": "Verify & Correct Row",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        672,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "",
+          "cachedResultUrl": ""
+        },
+        "builtInTools": {
+          "webSearch": {
+            "searchContextSize": "high"
+          }
+        },
+        "options": {}
+      },
+      "id": "5c5e35e2-0fae-49ee-a4d8-290f91ab8f7c",
+      "name": "OpenAI (Web Search)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        336
+      ],
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"Company Name\":\"Acme Inc\",\"Director Name\":\"John Doe, Jane Roe\",\"Website\":\"https://acme.com\",\"Email\":\"info@acme.com\",\"Number\":\"+1 555 123 4567\",\"Address\":\"123 Main St, San Francisco, CA, USA\",\"Turnover\":\"$10M\",\"Title\":\"Chief Technology Officer\",\"First Name\":\"John\",\"Last Name\":\"Doe\",\"Business Email\":\"john@acme.com\",\"Person Source\":\"John Doe\",\"Sample Mail\":\"Hi John, I came across Acme Inc and would love to connect regarding...\",\"Team\":\"50-100\",\"Google Link\":\"https://www.google.com/search?q=Acme+Inc\",\"Category\":\"Software\",\"Description\":\"Acme Inc builds cloud software for SMBs.\",\"verified\":true,\"notes\":\"Chose John Doe as active director; confirmed via LinkedIn and company site.\"}"
+      },
+      "id": "0b1709bc-0edc-4c1b-ac8e-f249d42825f3",
+      "name": "Verified Fields",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Get Sheet Link').item.json['Sheet Link'] }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0",
+          "cachedResultName": "First tab"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "row_number"
+          ],
+          "value": {
+            "row_number": "={{ $('Loop Over Rows').item.json.row_number }}",
+            "Company Name": "={{ $json.output['Company Name'] }}",
+            "Director Name": "={{ $json.output['Director Name'] }}",
+            "Website": "={{ $json.output.Website }}",
+            "Email": "={{ $json.output.Email }}",
+            "Number": "={{ $json.output.Number }}",
+            "Address": "={{ $json.output.Address }}",
+            "Turnover": "={{ $json.output.Turnover }}",
+            "Title": "={{ $json.output.Title }}",
+            "First Name": "={{ $json.output['First Name'] }}",
+            "Last Name": "={{ $json.output['Last Name'] }}",
+            "Business Email": "={{ $json.output['Business Email'] }}",
+            "Person Source": "={{ $json.output['Person Source'] }}",
+            "Sample Mail": "={{ $json.output['Sample Mail'] }}",
+            "Team": "={{ $json.output.Team }}",
+            "Google Link": "={{ $json.output['Google Link'] }}",
+            "Category": "={{ $json.output.Category }}",
+            "Description": "={{ $json.output.Description }}",
+            "Notes": "={{ $json.output.notes }}"
+          },
+          "schema": [
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Director Name",
+              "displayName": "Director Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Number",
+              "displayName": "Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Business Email",
+              "displayName": "Business Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Turnover",
+              "displayName": "Turnover",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Person Source",
+              "displayName": "Person Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Sample Mail",
+              "displayName": "Sample Mail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Team",
+              "displayName": "Team",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Google Link",
+              "displayName": "Google Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "01230bb7-a28c-4af5-8926-1700a6217a56",
+      "name": "Update Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1408,
+        320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AvU3lr06lwaDdwas",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        240,
+        224
+      ],
+      "id": "4e9b94c5-dcc0-453a-83d6-d4fe892d8a8a",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a data verification & enrichment assistant. Your job is to research this company and its people with web search, and fill in EVERY field that is missing while correcting any field that is wrong.\n\nInstructions:\n1. Use web search (company website, public LinkedIn pages, business directories, Google) to find reliable public information.\n2. Fill in every blank field you can. Correct wrong or outdated values. Keep an existing value only if you confirm it is correct; if you cannot confirm a field, keep the original value unchanged (do not invent fake data).\n3. MULTIPLE PEOPLE: the Director Name field may list 2 or 3 people. Research EACH person separately, then choose the SINGLE most valid, currently-active, best-matching person for this company (clearly linked as director/owner, with verifiable public info). Put that chosen person's full name into 'Person Source', split into 'First Name' and 'Last Name', and put their role into 'Title'. Keep the full original list in 'Director Name'.\n4. For the chosen person find their 'Business Email'. Draft a short professional outreach 'Sample Mail' (a sample email body) addressed to that person for this company.\n5. Also fill company-level fields: 'Website', 'Email', 'Number' (phone), 'Address', 'Turnover' (approx annual revenue if public), 'Team' (approx number of employees), 'Category' (industry/sector), 'Description' (1-2 line company summary) and 'Google Link' (a Google search or Google Maps link for the company).\n\nCurrent record:\nCompany Name: {{ $json['Company Name'] }}\nDirector Name (may list several people): {{ $json['Director Name'] }}\nWebsite: {{ $json.Website }}\nEmail: {{ $json.Email }}\nPhone/Number: {{ $json.Number }}\nAddress: {{ $json.Address }}\nTurnover: {{ $json.Turnover }}\nTitle: {{ $json.Title }}\nFirst Name: {{ $json['First Name'] }}\nLast Name: {{ $json['Last Name'] }}\nBusiness Email: {{ $json['Business Email'] }}\nPerson Source: {{ $json['Person Source'] }}\nSample Mail: {{ $json['Sample Mail'] }}\nTeam: {{ $json.Team }}\nGoogle Link: {{ $json['Google Link'] }}\nCategory: {{ $json.Category }}\nDescription: {{ $json.Description }}\n\nReturn corrected/enriched values for ALL fields. Set \"verified\" to true only if you confirmed the company via web search, otherwise false. In \"notes\", briefly say which person you chose and why, and note any field you could not confirm.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "id": "930d10df-a9ed-4339-ba58-b9302e19d6b5",
+      "name": "Verify & Correct Row1",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        992,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "",
+          "cachedResultUrl": ""
+        },
+        "builtInTools": {
+          "webSearch": {
+            "searchContextSize": "high"
+          }
+        },
+        "options": {}
+      },
+      "id": "c4c305f9-24ea-4494-94f6-66fc1bc35614",
+      "name": "OpenAI (Web Search)1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1008,
+        320
+      ],
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"Company Name\":\"Acme Inc\",\"Director Name\":\"John Doe, Jane Roe\",\"Website\":\"https://acme.com\",\"Email\":\"info@acme.com\",\"Number\":\"+1 555 123 4567\",\"Address\":\"123 Main St, San Francisco, CA, USA\",\"Turnover\":\"$10M\",\"Title\":\"Chief Technology Officer\",\"First Name\":\"John\",\"Last Name\":\"Doe\",\"Business Email\":\"john@acme.com\",\"Person Source\":\"John Doe\",\"Sample Mail\":\"Hi John, I came across Acme Inc and would love to connect regarding...\",\"Team\":\"50-100\",\"Google Link\":\"https://www.google.com/search?q=Acme+Inc\",\"Category\":\"Software\",\"Description\":\"Acme Inc builds cloud software for SMBs.\",\"verified\":true,\"notes\":\"Chose John Doe as active director; confirmed via LinkedIn and company site.\"}"
+      },
+      "id": "10bb893e-bc5f-454e-baa6-fad96b0569e0",
+      "name": "Verified Fields1",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1152,
+        320
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get Sheet Link": {
+      "main": [
+        [
+          {
+            "node": "Read Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rows": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Rows": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Verify & Correct Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify & Correct Row": {
+      "main": [
+        [
+          {
+            "node": "Verify & Correct Row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI (Web Search)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Verify & Correct Row",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verified Fields": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Verify & Correct Row",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Row": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI (Web Search)1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Verify & Correct Row1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verified Fields1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Verify & Correct Row1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify & Correct Row1": {
+      "main": [
+        [
+          {
+            "node": "Update Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "847bb756-e201-499c-ba50-9f51d7a1d4d9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "622818e025fb0350912891a2759a845557d24e7554ad8b560b3bbfc880ba7e6a"
+  },
+  "nodeGroups": [],
+  "id": "p8x5FAffeR8hx9KY",
+  "tags": []
+}
